@@ -116,6 +116,28 @@ elif 'mysql' in db_backend:
 
 db_options = {}
 
+USE_DATABASE_TLS = config.has_option('database', 'tls')
+USE_DATABASE_MTLS = config.has_option('database', 'mtls')
+
+if USE_DATABASE_TLS or USE_DATABASE_MTLS:
+    tls_config = {}
+    if USE_DATABASE_TLS:
+        if 'postgresql' in db_backend:
+            tls_config = {
+                'sslmode': config.get('database', 'sslmode'),
+                'sslrootcert': config.get('database', 'sslrootcert'),
+            }
+    else:
+        if 'postgresql' in db_backend:
+            tls_config = {
+                'sslmode': config.get('database', 'sslmode'),
+                'sslrootcert': config.get('database', 'sslrootcert'),
+                'sslcert': config.get('database', 'sslcert'),
+                'sslkey': config.get('database', 'sslkey'),
+            }
+
+    db_options.update(tls_config)
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.' + db_backend,
@@ -227,11 +249,15 @@ if HAS_MEMCACHED:
 
 HAS_REDIS = config.has_option('redis', 'location')
 USE_REDIS_SENTINEL = config.has_option('redis', 'sentinels')
+USE_REDIS_TLS = config.has_option('redis', 'tls')
+USE_REDIS_MTLS = config.has_option('redis', 'mtls')
 HAS_REDIS_PASSWORD = config.has_option('redis', 'password')
 if HAS_REDIS:
     OPTIONS = {
         "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        "REDIS_CLIENT_KWARGS": {"health_check_interval": 30}
+        "REDIS_CLIENT_KWARGS": {
+            "health_check_interval": 30,
+        },
     }
 
     if USE_REDIS_SENTINEL:
@@ -241,6 +267,28 @@ if HAS_REDIS:
         # See https://github.com/jazzband/django-redis/issues/540
         OPTIONS["SENTINEL_KWARGS"] = {"socket_timeout": 1}
         OPTIONS["SENTINELS"] = [tuple(sentinel) for sentinel in loads(config.get('redis', 'sentinels'))]
+
+    if USE_REDIS_TLS or USE_REDIS_MTLS:
+        tls_config = {}
+        if USE_REDIS_TLS:
+            tls_config = {
+                'ssl': True,
+                'ssl_cert_reqs': config.get('redis', 'ssl_cert_reqs'),
+                'ssl_ca_certs': config.get('redis', 'ssl_ca_certs'),
+            }
+        else:
+            tls_config = {
+                'ssl': True,
+                'ssl_cert_reqs': config.get('redis', 'ssl_cert_reqs'),
+                'ssl_ca_certs': config.get('redis', 'ssl_ca_certs'),
+                'ssl_keyfile': config.get('redis', 'ssl_keyfile'),
+                'ssl_certfile': config.get('redis', 'ssl_certfile')
+            }
+
+        if USE_REDIS_SENTINEL is False:
+            OPTIONS["REDIS_CLIENT_KWARGS"].update(tls_config)
+        else:
+            OPTIONS["SENTINEL_KWARGS"].update(tls_config)
 
     if HAS_REDIS_PASSWORD:
         OPTIONS["PASSWORD"] = config.get('redis', 'password')
