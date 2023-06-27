@@ -116,8 +116,8 @@ elif 'mysql' in db_backend:
 
 db_options = {}
 
-USE_DATABASE_TLS = config.has_option('database', 'tls')
-USE_DATABASE_MTLS = config.has_option('database', 'mtls')
+USE_DATABASE_TLS = config.has_option('database', 'sslrootcert')
+USE_DATABASE_MTLS = config.has_option('database', 'sslcert')
 
 if USE_DATABASE_TLS or USE_DATABASE_MTLS:
     tls_config = {}
@@ -249,8 +249,8 @@ if HAS_MEMCACHED:
 
 HAS_REDIS = config.has_option('redis', 'location')
 USE_REDIS_SENTINEL = config.has_option('redis', 'sentinels')
-USE_REDIS_TLS = config.has_option('redis', 'tls')
-USE_REDIS_MTLS = config.has_option('redis', 'mtls')
+USE_REDIS_TLS = config.has_option('redis', 'ssl_ca_certs')
+USE_REDIS_MTLS = config.has_option('redis', 'ssl_certfile')
 HAS_REDIS_PASSWORD = config.has_option('redis', 'password')
 if HAS_REDIS:
     OPTIONS = {
