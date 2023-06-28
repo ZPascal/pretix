@@ -50,7 +50,6 @@ from .helpers.config import EnvOrParserConfig
 # Pull in all settings that we also need at wheel require time
 from ._base_settings import *  # NOQA
 
-
 from django.contrib.messages import constants as messages  # NOQA
 from django.utils.translation import gettext_lazy as _  # NOQA
 
@@ -116,7 +115,8 @@ elif 'mysql' in db_backend:
 
 db_options = {}
 
-USE_DATABASE_TLS = config.has_option('database', 'sslrootcert')
+postgresql_sslmode = config.get('database', 'sslmode')
+USE_DATABASE_TLS = True if postgresql_sslmode is not None and postgresql_sslmode != "disable" else False
 USE_DATABASE_MTLS = config.has_option('database', 'sslcert')
 
 if USE_DATABASE_TLS or USE_DATABASE_MTLS:
@@ -190,7 +190,6 @@ CSRF_TRUSTED_ORIGINS = [urlparse(SITE_URL).scheme + '://' + urlparse(SITE_URL).h
 TRUST_X_FORWARDED_FOR = config.get('pretix', 'trust_x_forwarded_for', fallback=False)
 USE_X_FORWARDED_HOST = config.get('pretix', 'trust_x_forwarded_host', fallback=False)
 
-
 REQUEST_ID_HEADER = config.get('pretix', 'request_id_header', fallback=False)
 
 if config.get('pretix', 'trust_x_forwarded_proto', fallback=False):
@@ -213,9 +212,11 @@ TIME_ZONE = config.get('locale', 'timezone', fallback='UTC')
 MAIL_FROM = SERVER_EMAIL = DEFAULT_FROM_EMAIL = config.get('mail', 'from', fallback='pretix@localhost')
 MAIL_FROM_NOTIFICATIONS = config.get('mail', 'from_notifications', fallback=MAIL_FROM)
 MAIL_FROM_ORGANIZERS = config.get('mail', 'from_organizers', fallback=MAIL_FROM)
-MAIL_CUSTOM_SENDER_VERIFICATION_REQUIRED = config.getboolean('mail', 'custom_sender_verification_required', fallback=True)
+MAIL_CUSTOM_SENDER_VERIFICATION_REQUIRED = config.getboolean('mail', 'custom_sender_verification_required',
+                                                             fallback=True)
 MAIL_CUSTOM_SENDER_SPF_STRING = config.get('mail', 'custom_sender_spf_string', fallback='')
-MAIL_CUSTOM_SMTP_ALLOW_PRIVATE_NETWORKS = config.getboolean('mail', 'custom_smtp_allow_private_networks', fallback=DEBUG)
+MAIL_CUSTOM_SMTP_ALLOW_PRIVATE_NETWORKS = config.getboolean('mail', 'custom_smtp_allow_private_networks',
+                                                            fallback=DEBUG)
 EMAIL_HOST = config.get('mail', 'host', fallback='localhost')
 EMAIL_PORT = config.getint('mail', 'port', fallback=25)
 EMAIL_HOST_USER = config.get('mail', 'user', fallback='')
@@ -249,7 +250,8 @@ if HAS_MEMCACHED:
 
 HAS_REDIS = config.has_option('redis', 'location')
 USE_REDIS_SENTINEL = config.has_option('redis', 'sentinels')
-USE_REDIS_TLS = config.has_option('redis', 'ssl_ca_certs')
+redis_ssl_cert_reqs = config.get('database', 'ssl_cert_reqs')
+USE_REDIS_TLS = True if redis_ssl_cert_reqs is not None and redis_ssl_cert_reqs != "none" else False
 USE_REDIS_MTLS = config.has_option('redis', 'ssl_certfile')
 HAS_REDIS_PASSWORD = config.has_option('redis', 'password')
 if HAS_REDIS:
@@ -354,7 +356,7 @@ LANGUAGE_COOKIE_NAME = 'pretix_language'
 CSRF_COOKIE_NAME = 'pretix_csrftoken'
 SESSION_COOKIE_HTTPONLY = True
 
-INSTALLED_APPS += [ # noqa
+INSTALLED_APPS += [  # noqa
     'django_filters',
     'django_markup',
     'django_otp',
@@ -370,6 +372,7 @@ if db_backend == 'postgresql':
 
 try:
     import django_extensions  # noqa
+
     INSTALLED_APPS.append('django_extensions')
 except ImportError:
     pass
@@ -383,7 +386,6 @@ for entry_point in metadata.entry_points(group='pretix.plugin'):
 
 HIJACK_PERMISSION_CHECK = "hijack.permissions.superusers_and_staff"
 HIJACK_INSERT_BEFORE = None
-
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
@@ -415,7 +417,6 @@ REST_FRAMEWORK = {
     'UNICODE_JSON': False
 }
 
-
 CORE_MODULES = {
     "pretix.base",
     "pretix.presale",
@@ -445,6 +446,7 @@ MIDDLEWARE = [
 
 try:
     import debug_toolbar.settings  # noqa
+
     if DEBUG:
         INSTALLED_APPS.append('debug_toolbar.apps.DebugToolbarConfig')
         MIDDLEWARE.insert(0, 'debug_toolbar.middleware.DebugToolbarMiddleware')
@@ -457,18 +459,15 @@ try:
 except ImportError:
     pass
 
-
 if METRICS_ENABLED:
     MIDDLEWARE.insert(MIDDLEWARE.index('pretix.base.middleware.CustomCommonMiddleware') + 1,
                       'pretix.helpers.metrics.middleware.MetricsMiddleware')
-
 
 PROFILING_RATE = config.getfloat('django', 'profile', fallback=0)  # Percentage of requests to profile
 if PROFILING_RATE > 0:
     if not os.path.exists(PROFILE_DIR):
         os.mkdir(PROFILE_DIR)
     MIDDLEWARE.insert(0, 'pretix.helpers.profile.middleware.CProfileMiddleware')
-
 
 # Security settings
 X_FRAME_OPTIONS = 'DENY'
@@ -479,18 +478,18 @@ ROOT_URLCONF = 'pretix.multidomain.maindomain_urlconf'
 WSGI_APPLICATION = 'pretix.wsgi.application'
 
 if config.has_option('languages', 'path'):
-    LOCALE_PATHS.insert(0, config.get('languages', 'path')) # noqa
+    LOCALE_PATHS.insert(0, config.get('languages', 'path'))  # noqa
 
-LANGUAGES_INCUBATING = LANGUAGES_INCUBATING - set(config.get('languages', 'allow_incubating', fallback='').split(',')) # noqa
+LANGUAGES_INCUBATING = LANGUAGES_INCUBATING - set(
+    config.get('languages', 'allow_incubating', fallback='').split(','))  # noqa
 LANGUAGES = []
 LANGUAGES_ENABLED = [lang for lang in config.get("languages", "enabled", fallback='').split(',') if lang]
-for k, v in ALL_LANGUAGES: # noqa
+for k, v in ALL_LANGUAGES:  # noqa
     if not DEBUG and k in LANGUAGES_INCUBATING:
         continue
     if LANGUAGES_ENABLED and k not in LANGUAGES_ENABLED:
         continue
     LANGUAGES.append((k, v))
-
 
 AUTH_USER_MODEL = 'pretixbase.User'
 LOGIN_URL = 'control:auth.login'
@@ -502,10 +501,10 @@ template_loaders = (
     'pretix.helpers.template_loaders.AppLoader',
 )
 if not DEBUG:
-    TEMPLATES[0]['OPTIONS']['loaders'] = ( # noqa
+    TEMPLATES[0]['OPTIONS']['loaders'] = (  # noqa
         ('django.template.loaders.cached.Loader', template_loaders),
     )
-TEMPLATES[0]['DIRS'].insert(0, os.path.join(DATA_DIR, 'templates')) # noqa
+TEMPLATES[0]['DIRS'].insert(0, os.path.join(DATA_DIR, 'templates'))  # noqa
 
 INTERNAL_IPS = ('127.0.0.1', '::1')
 
@@ -620,11 +619,13 @@ if config.has_option('sentry', 'dsn') and not any(c in sys.argv for c in ('shell
 
     SENTRY_TOKEN = config.get('sentry', 'traces_sample_token', fallback='')
 
+
     def traces_sampler(sampling_context):
         qs = sampling_context.get('wsgi_environ', {}).get('QUERY_STRING', '')
         if SENTRY_TOKEN and SENTRY_TOKEN in qs:
             return 1.0
         return config.getfloat('sentry', 'traces_sample_rate', fallback=0.0)
+
 
     SENTRY_ENABLED = True
     sentry_sdk.init(
@@ -658,19 +659,19 @@ CELERY_TASK_QUEUES = (
     Queue('notifications', routing_key='notifications.#'),
 )
 CELERY_TASK_ROUTES = ([
-    ('pretix.base.services.cart.*', {'queue': 'checkout'}),
-    ('pretix.base.services.export.scheduled_organizer_export', {'queue': 'background'}),
-    ('pretix.base.services.export.scheduled_event_export', {'queue': 'background'}),
-    ('pretix.base.services.orders.*', {'queue': 'checkout'}),
-    ('pretix.base.services.mail.*', {'queue': 'mail'}),
-    ('pretix.base.services.update_check.*', {'queue': 'background'}),
-    ('pretix.base.services.quotas.*', {'queue': 'background'}),
-    ('pretix.base.services.waitinglist.*', {'queue': 'background'}),
-    ('pretix.base.services.notifications.*', {'queue': 'notifications'}),
-    ('pretix.api.webhooks.*', {'queue': 'notifications'}),
-    ('pretix.presale.style.*', {'queue': 'background'}),
-    ('pretix.plugins.banktransfer.*', {'queue': 'background'}),
-],)
+                          ('pretix.base.services.cart.*', {'queue': 'checkout'}),
+                          ('pretix.base.services.export.scheduled_organizer_export', {'queue': 'background'}),
+                          ('pretix.base.services.export.scheduled_event_export', {'queue': 'background'}),
+                          ('pretix.base.services.orders.*', {'queue': 'checkout'}),
+                          ('pretix.base.services.mail.*', {'queue': 'mail'}),
+                          ('pretix.base.services.update_check.*', {'queue': 'background'}),
+                          ('pretix.base.services.quotas.*', {'queue': 'background'}),
+                          ('pretix.base.services.waitinglist.*', {'queue': 'background'}),
+                          ('pretix.base.services.notifications.*', {'queue': 'notifications'}),
+                          ('pretix.api.webhooks.*', {'queue': 'notifications'}),
+                          ('pretix.presale.style.*', {'queue': 'background'}),
+                          ('pretix.plugins.banktransfer.*', {'queue': 'background'}),
+                      ],)
 
 BOOTSTRAP3 = {
     'success_css_class': '',
@@ -727,8 +728,10 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10 MB
 # File sizes are in MiB
 FILE_UPLOAD_MAX_SIZE_IMAGE = 1024 * 1024 * config.getint("pretix_file_upload", "max_size_image", fallback=10)
 FILE_UPLOAD_MAX_SIZE_FAVICON = 1024 * 1024 * config.getint("pretix_file_upload", "max_size_favicon", fallback=1)
-FILE_UPLOAD_MAX_SIZE_EMAIL_ATTACHMENT = 1024 * 1024 * config.getint("pretix_file_upload", "max_size_email_attachment", fallback=5)
-FILE_UPLOAD_MAX_SIZE_EMAIL_AUTO_ATTACHMENT = 1024 * 1024 * config.getint("pretix_file_upload", "max_size_email_auto_attachment", fallback=1)
+FILE_UPLOAD_MAX_SIZE_EMAIL_ATTACHMENT = 1024 * 1024 * config.getint("pretix_file_upload", "max_size_email_attachment",
+                                                                    fallback=5)
+FILE_UPLOAD_MAX_SIZE_EMAIL_AUTO_ATTACHMENT = 1024 * 1024 * config.getint("pretix_file_upload",
+                                                                         "max_size_email_auto_attachment", fallback=1)
 FILE_UPLOAD_MAX_SIZE_OTHER = 1024 * 1024 * config.getint("pretix_file_upload", "max_size_other", fallback=10)
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'  # sadly. we would prefer BigInt, and should use it for all new models but the migration will be hard
