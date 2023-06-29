@@ -115,8 +115,8 @@ elif 'mysql' in db_backend:
 
 db_options = {}
 
-postgresql_sslmode = config.get('database', 'sslmode')
-USE_DATABASE_TLS = True if postgresql_sslmode is not None and postgresql_sslmode != "disable" else False
+postgresql_sslmode = config.get('database', 'sslmode', fallback="disable")
+USE_DATABASE_TLS = postgresql_sslmode != "disable"
 USE_DATABASE_MTLS = config.has_option('database', 'sslcert')
 
 if USE_DATABASE_TLS or USE_DATABASE_MTLS:
@@ -250,8 +250,8 @@ if HAS_MEMCACHED:
 
 HAS_REDIS = config.has_option('redis', 'location')
 USE_REDIS_SENTINEL = config.has_option('redis', 'sentinels')
-redis_ssl_cert_reqs = config.get('database', 'ssl_cert_reqs')
-USE_REDIS_TLS = True if redis_ssl_cert_reqs is not None and redis_ssl_cert_reqs != "none" else False
+redis_ssl_cert_reqs = config.get('redis', 'ssl_cert_reqs', fallback="none")
+USE_REDIS_TLS = redis_ssl_cert_reqs != "none"
 USE_REDIS_MTLS = config.has_option('redis', 'ssl_certfile')
 HAS_REDIS_PASSWORD = config.has_option('redis', 'password')
 if HAS_REDIS:
