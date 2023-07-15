@@ -334,8 +334,8 @@ to speed up various operations::
         ]
     password=password
     ssl_cert_reqs=required
-    ssl_ca_certs=/etc/pretix/redis-ca.crt
-    ssl_keyfile=/etc/pretix/redis-client-crt.crt
+    ssl_ca_certs=/etc/pretix/redis-ca.pem
+    ssl_keyfile=/etc/pretix/redis-client-crt.pem
     ssl_certfile=/etc/pretix/redis-client-key.key
 
 ``location``
@@ -424,6 +424,8 @@ redis for convenience. See the `Celery documentation`_ for more details.
 The two ``transport_options`` entries can be omitted in most cases.
 If they are present they need to be a valid JSON dictionary.
 For possible entries in that dictionary see the `Celery documentation`_.
+
+It is possible the use Redis with TLS/ mTLS for the broker or the backend. If you want to setup it, it is necessary to specify the TLS identifier ``rediss``, the ssl mode ``ssl_cert_reqs`` and optionally specify the CA (TLS) ``ssl_ca_certs``, cert ``ssl_certfile`` and key ``ssl_keyfile`` (mTLS) path as encoded string. the following uri describes the format and possible parameters ``rediss://0.0.0.0:6379/1?ssl_cert_reqs=required&ssl_ca_certs=%2Fetc%2Fpretix%2Fredis-ca.pem&ssl_certfile=%2Fetc%2Fpretix%2Fredis-client-crt.pem&ssl_keyfile=%2Fetc%2Fpretix%2Fredis-client-key.key``
 
 To use redis with sentinels set the broker or backend to ``sentinel://sentinel_host_1:26379;sentinel_host_2:26379/0``
 and the respective transport_options to ``{"master_name":"mymaster"}``.
